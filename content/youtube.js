@@ -1,74 +1,70 @@
 // ============================================================
-// Blank Mode — content/youtube.js  (Phase 1.1)
+// Blank Mode — content/youtube.js  (Phase 2)
 // Runs on every https://www.youtube.com/* page.
 //
-// How it works:
-//   1. Reads saved settings from chrome.storage.local.
-//   2. If Blank Mode is ON, hides recommendation surfaces and
-//      (on the homepage) injects a focused search screen.
-//   3. A MutationObserver watches for YouTube's dynamic DOM
-//      updates (YouTube is a SPA) and re-applies hiding after
-//      each navigation or lazy render — debounced to save CPU.
-//   4. Listens for messages from the popup so the user does
-//      not have to refresh the page when toggling.
-//
-// Phase 1.1 improvements:
-//   - Debug logging behind a blankModeDebug flag (off by default)
-//   - Broader selector coverage with named fallback groups
-//   - Shorts direct-URL page guard (hides Shorts player UI)
-//   - Search-results page: hides inline recommendation shelves
-//   - URL-change detection moved to its own cleaner handler
-//   - applyDetox guards against running twice on the same URL
-//   - hideElements tracks how many elements it actually hid
+// Phase 2 additions over Phase 1.1:
+//   - Granular per-feature toggles (homepage, shorts, right-rail,
+//     endscreen, autoplay) read from chrome.storage.local
+//   - Strict mode: extra aggressive hiding on search results
+//   - Pause mode: temporarily suspend all hiding for N minutes
+//   - Channel allowlist: skip hiding on allowlisted pages/channels
+//   - "Get channel info" message so the popup can auto-fill the
+//     allowlist with the channel on the current watch page
+//   - Settings-update message so popup changes apply instantly
 // ============================================================
 
 "use strict";
 
 // ── Constants ───────────────────────────────────────────────
-
-const HIDDEN_CLASS       = "blank-mode-hidden";
+const HIDDEN_CLASS        = "blank-mode-hidden";
 const HOME_REPLACEMENT_ID = "blank-mode-home";
+const DEBOUNCE_MS         = 250;
 
-// Debounce delay for MutationObserver callbacks (ms).
-// Lower = more responsive but uses more CPU on busy pages.
-const DEBOUNCE_MS = 250;
-
-// Set to true to see verbose logs in the browser console.
-// Change via chrome.storage.local key "blankModeDebug": true
-// or flip this default here during development.
-let DEBUG = false;
+// Default values for each granular toggle.
+// These apply when the user has never saved a preference.
+const DEFAULT_SETTINGS = {
+  hideHomeFeed:  true,
+  hideShorts:    true,
+  hideRightRail: true,
+  hideEndscreen: true,
+  hideAutoplay:  true,
+  strictMode:    false,
+};
 
 // ── State ───────────────────────────────────────────────────
 let blankModeEnabled = false;
-let debounceTimer    = null;
-let lastUrl          = location.href;
-let lastAppliedUrl   = null; // prevents redundant apply calls
+let settings         = { ...DEFAULT_SETTINGS };
+let allowlist        = [];   // array of string patterns
+let pauseUntil       = 0;    // timestamp ms; 0 = not paused
+let DEBUG            = false;
+
+let debounceTimer = null;
+let pauseTimer    = null;   // auto-resume timeout
+let lastUrl       = location.href;
 
 // ── Entry point ─────────────────────────────────────────────
-getSettings().then(({ enabled, debug }) => {
-  blankModeEnabled = enabled;
-  DEBUG            = debug;
+getSettings().then((stored) => {
+  blankModeEnabled = stored.enabled;
+  settings         = stored.settings;
+  allowlist        = stored.allowlist;
+  pauseUntil       = stored.pauseUntil;
+  DEBUG            = stored.debug;
 
+  schedulePauseExpiry();
   applyDetox();
   setupMutationObserver();
   setupMessageListener();
 
-  log("Initialised. Detox:", blankModeEnabled, "| Debug:", DEBUG);
+  log("Initialised v0.2.0 | Enabled:", blankModeEnabled,
+      "| Paused:", isPaused(), "| Allowlisted:", isAllowlisted());
 });
 
 // ============================================================
 // LOGGING
 // ============================================================
 
-/** Logs to console only when DEBUG is true. */
-function log(...args) {
-  if (DEBUG) console.log("[Blank Mode]", ...args);
-}
-
-function warn(...args) {
-  // Warnings always show — they indicate a selector or runtime problem.
-  console.warn("[Blank Mode]", ...args);
-}
+function log(...args)  { if (DEBUG) console.log("[Blank Mode]", ...args); }
+function warn(...args) { console.warn("[Blank Mode]", ...args); }
 
 // ============================================================
 // SETTINGS
@@ -76,17 +72,23 @@ function warn(...args) {
 
 /**
  * getSettings
- * Reads blankModeEnabled and blankModeDebug from chrome.storage.local.
- * Returns Promise<{ enabled: boolean, debug: boolean }>.
+ * Reads all Blank Mode keys from chrome.storage.local and returns
+ * a clean, normalised object with safe defaults applied.
  */
 function getSettings() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(["blankModeEnabled", "blankModeDebug"], (result) => {
-      resolve({
-        enabled: result.blankModeEnabled === true,
-        debug:   result.blankModeDebug   === true,
-      });
-    });
+    chrome.storage.local.get(
+      ["blankModeEnabled", "blankModeDebug", "bmSettings", "bmAllowlist", "bmPauseUntil"],
+      (result) => {
+        resolve({
+          enabled:    result.blankModeEnabled === true,
+          debug:      result.blankModeDebug   === true,
+          settings:   Object.assign({}, DEFAULT_SETTINGS, result.bmSettings  || {}),
+          allowlist:  Array.isArray(result.bmAllowlist) ? result.bmAllowlist : [],
+          pauseUntil: Number(result.bmPauseUntil) || 0,
+        });
+      }
+    );
   });
 }
 
@@ -94,25 +96,88 @@ function getSettings() {
 // PAGE TYPE DETECTION
 // ============================================================
 
-/** YouTube homepage (/ or /feed/*) */
-function isYouTubeHomePage() {
-  const p = location.pathname;
-  return p === "/" || p.startsWith("/feed/");
+function isYouTubeHomePage()   { return location.pathname === "/" || location.pathname.startsWith("/feed/"); }
+function isYouTubeWatchPage()  { return location.pathname === "/watch"; }
+function isYouTubeSearchPage() { return location.pathname === "/results"; }
+function isYouTubeShortsPage() { return location.pathname.startsWith("/shorts"); }
+
+// ============================================================
+// PAUSE MODE
+// ============================================================
+
+/** Returns true while a timed pause is active. */
+function isPaused() {
+  return pauseUntil > 0 && Date.now() < pauseUntil;
 }
 
-/** Video watch page (/watch?v=...) */
-function isYouTubeWatchPage() {
-  return location.pathname === "/watch";
+/**
+ * schedulePauseExpiry
+ * Sets a timer that re-applies detox exactly when the pause expires.
+ * Clears any existing timer first to avoid stacking.
+ */
+function schedulePauseExpiry() {
+  clearTimeout(pauseTimer);
+  if (!isPaused()) return;
+
+  const remaining = pauseUntil - Date.now();
+  log("Pause active. Resuming in", Math.round(remaining / 1000), "seconds.");
+
+  pauseTimer = setTimeout(() => {
+    pauseUntil = 0;
+    chrome.storage.local.set({ bmPauseUntil: 0 });
+    log("Pause expired — re-applying detox.");
+    applyDetox();
+  }, remaining);
 }
 
-/** Search results page (/results?search_query=...) */
-function isYouTubeSearchPage() {
-  return location.pathname === "/results";
+// ============================================================
+// ALLOWLIST
+// ============================================================
+
+/**
+ * isAllowlisted
+ * Returns true if the current page URL matches any pattern in the
+ * allowlist. Matching is case-insensitive substring search so users
+ * can add things like "@3blue1brown" or "veritasium".
+ */
+function isAllowlisted() {
+  if (!allowlist.length) return false;
+  const url = location.href.toLowerCase();
+  return allowlist.some((pattern) => url.includes(pattern.toLowerCase()));
 }
 
-/** Direct Shorts page (/shorts/...) */
-function isYouTubeShortsPage() {
-  return location.pathname.startsWith("/shorts");
+/**
+ * getChannelInfo
+ * Extracts the current channel's handle or name from the page DOM.
+ * Called when the popup requests "Add current channel" info.
+ * Returns a string pattern the user can add to the allowlist, or null.
+ */
+function getChannelInfo() {
+  // 1. Channel/handle directly in the URL (e.g. youtube.com/@MrBeast)
+  const urlMatch = location.pathname.match(/^\/@([^/?]+)/);
+  if (urlMatch) return "@" + urlMatch[1];
+
+  // 2. Watch page — read the uploader link
+  const ownerLink = document.querySelector(
+    "#owner #channel-name a, #upload-info #channel-name a, ytd-video-owner-renderer a"
+  );
+  if (ownerLink) {
+    const href = ownerLink.getAttribute("href") || "";
+    const m = href.match(/\/@([^/?]+)/) || href.match(/\/c\/([^/?]+)/);
+    if (m) return m[0]; // returns "/@handle" or "/c/name"
+    const text = ownerLink.textContent.trim();
+    if (text) return text;
+  }
+
+  // 3. Channel page header
+  const channelName = document.querySelector(
+    "ytd-channel-name yt-formatted-string, #channel-name yt-formatted-string"
+  );
+  if (channelName && channelName.textContent.trim()) {
+    return channelName.textContent.trim();
+  }
+
+  return null;
 }
 
 // ============================================================
@@ -121,28 +186,29 @@ function isYouTubeShortsPage() {
 
 /**
  * applyDetox
- * Central function called after every DOM mutation and URL change.
- * Routes to the right hiding logic based on the current page type.
+ * Central routing function. Respects pause and allowlist before
+ * deciding what to hide on the current page.
  */
 function applyDetox() {
+  // If paused or on an allowlisted page, restore everything and exit.
+  if (isPaused() || isAllowlisted()) {
+    restoreRecommendations();
+    removeHomeReplacement();
+    log(isPaused() ? "Paused — skipping." : "Allowlisted — skipping.");
+    return;
+  }
+
   if (blankModeEnabled) {
-    // Always hide global recommendation surfaces regardless of page
     hideRecommendations();
 
     if (isYouTubeHomePage()) {
       injectHomeReplacement();
     } else {
-      // Navigated away from homepage — remove custom screen
       removeHomeReplacement();
     }
 
-    if (isYouTubeShortsPage()) {
-      hideShortsPageUI();
-    }
-
-    if (isYouTubeSearchPage()) {
-      hideSearchPageRecommendations();
-    }
+    if (isYouTubeShortsPage())  hideShortsPageUI();
+    if (isYouTubeSearchPage())  hideSearchPageRecommendations();
 
     log("Detox active on:", location.pathname);
   } else {
@@ -158,91 +224,77 @@ function applyDetox() {
 
 /**
  * SELECTOR_GROUPS
- * Named groups of CSS selectors, each targeting one recommendation surface.
- * Using multiple selectors per group means if YouTube renames one element,
- * the other selectors in the same group still catch it.
- *
- * To update after a YouTube DOM change:
- *   1. Open DevTools on YouTube
- *   2. Inspect the element that reappeared
- *   3. Add its new tag/class/id to the relevant group below
+ * Each group is an array of CSS selectors targeting one recommendation
+ * surface. Multiple selectors per group = resilience against YouTube
+ * renaming elements. Add new selectors here when YouTube updates break things.
  */
 const SELECTOR_GROUPS = {
 
-  // ── Homepage recommendation feed ──────────────────────────
   homeFeed: [
     "ytd-rich-grid-renderer",
     "ytd-browse[page-subtype='home'] #primary",
     "ytd-browse[page-subtype='home'] #contents",
   ],
 
-  // ── Shorts shelves (homepage and search results) ───────────
   shortsShelf: [
-    "ytd-rich-section-renderer",       // Shorts row on homepage grid
-    "ytd-reel-shelf-renderer",         // alternate Shorts shelf element
-    "ytd-shorts",                      // standalone Shorts element
-    "ytd-inline-shorts-renderer",      // newer inline variant
+    "ytd-rich-section-renderer",
+    "ytd-reel-shelf-renderer",
+    "ytd-shorts",
+    "ytd-inline-shorts-renderer",
+    "ytd-reel-item-renderer",          // individual Shorts cards on homepage
   ],
 
-  // ── Sidebar guide links to Shorts ─────────────────────────
   shortsSidebarLinks: [
     "ytd-guide-entry-renderer a[href='/shorts']",
     "ytd-mini-guide-entry-renderer a[href='/shorts']",
     "#endpoint[href='/shorts']",
   ],
 
-  // ── Right-side watch page recommendations ─────────────────
   watchRelated: [
     "#related",
     "ytd-watch-next-secondary-results-renderer",
     "#secondary-inner ytd-item-section-renderer",
-    "ytd-compact-video-renderer",      // individual related video cards
+    "ytd-compact-video-renderer",
+    "ytd-compact-playlist-renderer",
   ],
 
-  // ── Autoplay / Up Next banner ──────────────────────────────
   autoplay: [
     "ytd-compact-autoplay-renderer",
     ".ytp-autonav-endscreen-upnext-header",
     ".ytp-autonav-endscreen-upnext-button-container",
+    "ytd-autonav-enabled-renderer",
   ],
 
-  // ── End-screen overlays ────────────────────────────────────
   endscreen: [
     ".ytp-endscreen-content",
     ".ytp-ce-element",
     ".ytp-ce-covering-overlay",
+    ".ytp-ce-rendered-overlay",
   ],
 
-  // ── Homepage topic filter chips ────────────────────────────
   chips: [
     "#chips-wrapper",
     "ytd-feed-filter-chip-bar-renderer",
     "yt-chip-cloud-renderer",
   ],
 
-  // ── Promoted / advertisement shelves in search ────────────
-  searchAds: [
-    "ytd-search-pyv-renderer",         // promoted video in search
-    "ytd-shelf-renderer",              // "People also watched" shelf
-    "ytd-horizontal-card-list-renderer", // horizontal recommendation cards
-    "ytd-promoted-sparkles-web-renderer",
+  // Extra selectors used only in strict mode
+  strictExtras: [
+    "ytd-shelf-renderer",                    // "People also watched" shelves
+    "ytd-horizontal-card-list-renderer",     // horizontal card rows
+    "ytd-search-pyv-renderer",               // promoted videos in search
+    "ytd-promoted-sparkles-web-renderer",    // ad sparkle units
+    "ytd-promoted-video-renderer",
+    "ytd-guide-section-renderer[aria-label='Explore']",
+    "ytd-guide-section-renderer[aria-label='More from YouTube']",
+    "#related ytd-item-section-renderer",    // section wrappers in right rail
   ],
 
-  // ── Shorts player UI (when on /shorts/... directly) ───────
+  // Shorts player navigation (when on /shorts/... directly)
   shortsPlayer: [
-    "ytd-shorts ytd-reel-video-renderer + ytd-reel-video-renderer",
-    "#shorts-container ytd-button-renderer[aria-label*='islike' i]",
     "ytd-shorts #navigation-button-up",
     "ytd-shorts #navigation-button-down",
     "ytd-shorts .reel-player-overlay-renderer",
-  ],
-
-  // ── Notification bell / Explore in sidebar ─────────────────
-  // We target only non-subscription guide sections so users can
-  // still access their subscriptions for intentional viewing.
-  sidebarExplore: [
-    "ytd-guide-section-renderer[aria-label='Explore']",
-    "ytd-guide-section-renderer[aria-label='More from YouTube']",
   ],
 };
 
@@ -252,60 +304,61 @@ const SELECTOR_GROUPS = {
 
 /**
  * hideRecommendations
- * Hides all global recommendation surfaces that appear across pages.
- * Page-specific hiding is done in separate functions below.
+ * Hides surfaces based on each granular setting.
+ * Each block checks its own flag before calling hideGroup().
  */
 function hideRecommendations() {
-  hideGroup("shortsShelf");
-  hideGroup("shortsSidebarLinks");
-  hideGroup("watchRelated");
-  hideGroup("autoplay");
-  hideGroup("endscreen");
-  hideGroup("chips");
-  hideGroup("sidebarExplore");
+  if (settings.hideShorts) {
+    hideGroup("shortsShelf");
+    hideGroup("shortsSidebarLinks");
+  }
 
-  // Home feed — only suppress visually on home pages
-  // (the homeFeed group is also hidden via injectHomeReplacement)
-  if (isYouTubeHomePage()) {
+  if (settings.hideRightRail) {
+    hideGroup("watchRelated");
+  }
+
+  if (settings.hideAutoplay) {
+    hideGroup("autoplay");
+  }
+
+  if (settings.hideEndscreen) {
+    hideGroup("endscreen");
+  }
+
+  // Chip/filter bar always hidden when any detox is active
+  hideGroup("chips");
+
+  if (settings.hideHomeFeed && isYouTubeHomePage()) {
     hideGroup("homeFeed");
+  }
+
+  if (settings.strictMode) {
+    hideGroup("strictExtras");
   }
 }
 
-/**
- * hideShortsPageUI
- * Extra hiding when the user navigates directly to /shorts/...
- * We can't fully block the page but we suppress the navigation
- * arrows and overlay suggestions to reduce the scroll-feed effect.
- */
 function hideShortsPageUI() {
-  hideGroup("shortsPlayer");
-  log("Shorts page UI suppressed.");
+  if (settings.hideShorts) {
+    hideGroup("shortsPlayer");
+    log("Shorts page UI suppressed.");
+  }
 }
 
-/**
- * hideSearchPageRecommendations
- * Hides promoted / "People also watched" shelves on search results.
- * Regular video result cards are intentionally left visible.
- */
 function hideSearchPageRecommendations() {
-  hideGroup("searchAds");
-  log("Search page recommendation shelves hidden.");
+  if (settings.strictMode) {
+    hideGroup("strictExtras");
+    log("Strict mode: search page shelves hidden.");
+  }
 }
 
 /**
  * hideGroup
- * Runs all selectors in a named SELECTOR_GROUP and applies HIDDEN_CLASS.
- * Returns the total count of elements newly hidden for debugging.
- *
- * @param {string} groupName — key of SELECTOR_GROUPS
- * @returns {number}
+ * Adds HIDDEN_CLASS to every element matched by the named group's selectors.
+ * Returns the number of newly hidden elements.
  */
 function hideGroup(groupName) {
   const selectors = SELECTOR_GROUPS[groupName];
-  if (!selectors) {
-    warn("Unknown selector group:", groupName);
-    return 0;
-  }
+  if (!selectors) { warn("Unknown group:", groupName); return 0; }
 
   let count = 0;
   selectors.forEach((selector) => {
@@ -317,35 +370,31 @@ function hideGroup(groupName) {
         }
       });
     } catch (e) {
-      // Malformed selector — skip so one bad entry doesn't stop the rest.
-      warn("Invalid selector skipped in group", groupName + ":", selector, e.message);
+      warn("Bad selector in", groupName + ":", selector, e.message);
     }
   });
 
-  if (count > 0) log("Hid", count, "element(s) via group:", groupName);
+  if (count > 0) log("Hid", count, "el(s) via:", groupName);
   return count;
 }
 
 /**
  * restoreRecommendations
- * Removes HIDDEN_CLASS from every element we hid, restoring normal YouTube.
+ * Removes HIDDEN_CLASS from all elements to restore normal YouTube.
  */
 function restoreRecommendations() {
   const hidden = document.querySelectorAll("." + HIDDEN_CLASS);
   hidden.forEach((el) => el.classList.remove(HIDDEN_CLASS));
-  if (hidden.length > 0) log("Restored", hidden.length, "element(s).");
+  if (hidden.length) log("Restored", hidden.length, "element(s).");
 }
 
 // ============================================================
 // HOMEPAGE REPLACEMENT
 // ============================================================
 
-/**
- * injectHomeReplacement
- * Shows a clean, focused search screen over the YouTube homepage feed
- * so the user is prompted to search intentionally.
- */
 function injectHomeReplacement() {
+  // Only inject if the homepage feed is being hidden
+  if (!settings.hideHomeFeed) return;
   if (document.getElementById(HOME_REPLACEMENT_ID)) return;
 
   const div = document.createElement("div");
@@ -374,15 +423,12 @@ function injectHomeReplacement() {
           </svg>
         </button>
       </form>
-
-      <p class="bm-hint">Press Enter or click the button to search</p>
+      <p class="bm-hint">Press Enter to search</p>
     </div>
   `;
 
   document.body.appendChild(div);
 
-  // Focus the search input after a short delay so autofocus works
-  // even when YouTube's own scripts are still running.
   setTimeout(() => {
     const input = document.getElementById("bmSearchInput");
     if (input) input.focus();
@@ -392,45 +438,27 @@ function injectHomeReplacement() {
     e.preventDefault();
     const query = document.getElementById("bmSearchInput").value.trim();
     if (query) {
-      log("Search submitted:", query);
+      log("Searching:", query);
       location.href =
-        "https://www.youtube.com/results?search_query=" +
-        encodeURIComponent(query);
+        "https://www.youtube.com/results?search_query=" + encodeURIComponent(query);
     }
   });
 
   log("Homepage replacement injected.");
 }
 
-/**
- * removeHomeReplacement
- * Removes the custom screen so navigating away from the homepage
- * restores the normal YouTube layout.
- */
 function removeHomeReplacement() {
   const el = document.getElementById(HOME_REPLACEMENT_ID);
-  if (el) {
-    el.remove();
-    log("Homepage replacement removed.");
-  }
+  if (el) { el.remove(); log("Homepage replacement removed."); }
 }
 
 // ============================================================
-// MUTATION OBSERVER  (handles YouTube's SPA navigation)
+// MUTATION OBSERVER
 // ============================================================
 
-/**
- * setupMutationObserver
- * YouTube never does a full page reload when navigating between pages.
- * We watch for DOM mutations and URL changes so we can re-apply hiding
- * every time YouTube renders new content.
- */
 function setupMutationObserver() {
   const observer = new MutationObserver(() => {
     handleUrlChange();
-
-    // Debounce re-apply to avoid calling applyDetox hundreds of times
-    // per second during large DOM updates.
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(applyDetox, DEBOUNCE_MS);
   });
@@ -439,49 +467,81 @@ function setupMutationObserver() {
   log("MutationObserver active.");
 }
 
-/**
- * handleUrlChange
- * Called inside the MutationObserver callback.
- * If the URL has changed since the last check, re-apply detox
- * after a short delay to let YouTube finish rendering first.
- */
 function handleUrlChange() {
   if (location.href === lastUrl) return;
-
   lastUrl = location.href;
-  log("URL changed to:", lastUrl);
-
-  // When navigating away from home, ensure the replacement is removed
-  // immediately rather than waiting for the debounce.
+  log("URL →", lastUrl);
   if (!isYouTubeHomePage()) removeHomeReplacement();
-
-  // Give YouTube ~400 ms to render the new page's skeleton before hiding.
   setTimeout(applyDetox, 400);
 }
 
 // ============================================================
-// MESSAGE LISTENER  (receives popup toggle messages)
+// MESSAGE LISTENER
 // ============================================================
 
 /**
  * setupMessageListener
- * Listens for { type: "BLANK_MODE_TOGGLE", enabled: bool } from the popup.
- * Applies detox immediately so the page responds without a refresh.
+ * Handles all message types sent from the popup or background script.
  */
 function setupMessageListener() {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === "BLANK_MODE_TOGGLE") {
-      blankModeEnabled = message.enabled;
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+
+    // Master toggle
+    if (msg.type === "BLANK_MODE_TOGGLE") {
+      blankModeEnabled = msg.enabled;
       applyDetox();
-      log("Toggle message received. Enabled:", blankModeEnabled);
+      log("Toggle →", blankModeEnabled);
       sendResponse({ status: "ok", enabled: blankModeEnabled });
     }
 
-    // Handle debug mode toggle from popup (future use)
-    if (message.type === "BLANK_MODE_DEBUG") {
-      DEBUG = message.debug;
-      log("Debug mode set to:", DEBUG);
-      sendResponse({ status: "ok", debug: DEBUG });
+    // Granular settings updated (any individual toggle or strict mode)
+    if (msg.type === "SETTINGS_UPDATE") {
+      settings = Object.assign({}, DEFAULT_SETTINGS, msg.settings);
+      applyDetox();
+      log("Settings updated:", settings);
+      sendResponse({ status: "ok" });
     }
+
+    // Pause started
+    if (msg.type === "PAUSE_SET") {
+      pauseUntil = msg.pauseUntil;
+      schedulePauseExpiry();
+      applyDetox();
+      log("Pause set until:", new Date(pauseUntil).toLocaleTimeString());
+      sendResponse({ status: "ok" });
+    }
+
+    // Pause cleared (Resume Now)
+    if (msg.type === "PAUSE_CLEAR") {
+      pauseUntil = 0;
+      clearTimeout(pauseTimer);
+      applyDetox();
+      log("Pause cleared.");
+      sendResponse({ status: "ok" });
+    }
+
+    // Allowlist updated
+    if (msg.type === "ALLOWLIST_UPDATE") {
+      allowlist = Array.isArray(msg.allowlist) ? msg.allowlist : [];
+      applyDetox();
+      log("Allowlist updated:", allowlist);
+      sendResponse({ status: "ok" });
+    }
+
+    // Popup requests channel info to pre-fill the allowlist input
+    if (msg.type === "GET_CHANNEL_INFO") {
+      const info = getChannelInfo();
+      log("Channel info requested:", info);
+      sendResponse({ channelInfo: info });
+    }
+
+    // Debug mode toggle
+    if (msg.type === "BLANK_MODE_DEBUG") {
+      DEBUG = msg.debug;
+      sendResponse({ status: "ok" });
+    }
+
+    // Return true to keep the message channel open for async sendResponse.
+    return true;
   });
 }

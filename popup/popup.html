@@ -10,10 +10,10 @@
 
   <div class="container">
 
-    <!-- Header -->
+    <!-- ── Header ── -->
     <header class="header">
       <div class="logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="2" width="20" height="20" rx="4" fill="#e63946" />
           <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="2" stroke-linecap="round"/>
           <polygon points="10,8 16,12 10,16" fill="white" opacity="0.4"/>
@@ -21,15 +21,15 @@
       </div>
       <div class="header-text">
         <h1 class="title">Blank Mode</h1>
-        <span class="version">v0.1.1</span>
+        <span class="version">v0.2.0</span>
       </div>
     </header>
 
-    <!-- Main toggle -->
+    <!-- ── Master toggle ── -->
     <div class="toggle-section">
       <div class="toggle-label-group">
         <span class="toggle-label">YouTube Detox Mode</span>
-        <span class="toggle-description" id="toggleDescription">Recommendations hidden when enabled</span>
+        <span class="toggle-description" id="toggleDescription">Loading…</span>
       </div>
       <label class="toggle-switch" aria-label="Toggle Blank Mode">
         <input type="checkbox" id="blankModeToggle" />
@@ -37,28 +37,132 @@
       </label>
     </div>
 
-    <!-- Status bar (shows feedback after toggle) -->
+    <!-- ── Status / pause bar ── -->
     <div class="status-bar" id="statusBar" aria-live="polite" role="status"></div>
 
-    <!-- What's hidden list -->
-    <div class="features">
-      <p class="features-title">When ON, hides:</p>
-      <ul>
-        <li>Homepage feed &amp; recommendations</li>
-        <li>YouTube Shorts shelf &amp; sidebar links</li>
-        <li>Right-side "Up Next" suggestions</li>
-        <li>End-screen overlays &amp; autoplay</li>
-        <li>Promoted shelves in search results</li>
-      </ul>
-      <p class="features-note">Search &amp; video playback always work.</p>
-    </div>
+    <!-- ══════════════════════════════════════════════════════
+         SECTION 1: What to hide (granular toggles)
+    ══════════════════════════════════════════════════════ -->
+    <details class="section" open>
+      <summary class="section-title">What to hide</summary>
+      <div class="section-content">
 
-    <!-- Footer: debug toggle -->
+        <label class="row-toggle">
+          <span class="row-label">Homepage feed</span>
+          <input type="checkbox" id="st-hideHomeFeed" class="setting-check" data-key="hideHomeFeed" />
+        </label>
+
+        <label class="row-toggle">
+          <span class="row-label">Shorts shelf &amp; sidebar links</span>
+          <input type="checkbox" id="st-hideShorts" class="setting-check" data-key="hideShorts" />
+        </label>
+
+        <label class="row-toggle">
+          <span class="row-label">Right-side recommendations</span>
+          <input type="checkbox" id="st-hideRightRail" class="setting-check" data-key="hideRightRail" />
+        </label>
+
+        <label class="row-toggle">
+          <span class="row-label">End-screen overlays</span>
+          <input type="checkbox" id="st-hideEndscreen" class="setting-check" data-key="hideEndscreen" />
+        </label>
+
+        <label class="row-toggle">
+          <span class="row-label">Autoplay / Up Next</span>
+          <input type="checkbox" id="st-hideAutoplay" class="setting-check" data-key="hideAutoplay" />
+        </label>
+
+        <div class="divider"></div>
+
+        <label class="row-toggle strict-row">
+          <div class="row-label-group">
+            <span class="row-label">Strict mode</span>
+            <span class="row-sublabel">Hides more surfaces in search &amp; sidebar</span>
+          </div>
+          <input type="checkbox" id="st-strictMode" class="setting-check" data-key="strictMode" />
+        </label>
+
+      </div>
+    </details>
+
+    <!-- ══════════════════════════════════════════════════════
+         SECTION 2: Pause
+    ══════════════════════════════════════════════════════ -->
+    <details class="section" id="pauseSection">
+      <summary class="section-title">Pause Blank Mode</summary>
+      <div class="section-content">
+
+        <!-- Shown when NOT paused -->
+        <div id="pauseOptions">
+          <p class="section-hint">Temporarily suspend all hiding:</p>
+          <div class="pause-buttons">
+            <button class="pause-btn" data-minutes="10">10 min</button>
+            <button class="pause-btn" data-minutes="30">30 min</button>
+            <button class="pause-btn" data-minutes="60">1 hour</button>
+          </div>
+        </div>
+
+        <!-- Shown when paused -->
+        <div id="pauseActive" class="hidden">
+          <div class="pause-status">
+            <span class="pause-icon">⏸</span>
+            <div>
+              <p class="pause-label">Paused — hiding suspended</p>
+              <p class="pause-countdown" id="pauseCountdown"></p>
+            </div>
+          </div>
+          <button class="resume-btn" id="resumeBtn">Resume now</button>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- ══════════════════════════════════════════════════════
+         SECTION 3: Channel allowlist
+    ══════════════════════════════════════════════════════ -->
+    <details class="section" id="allowlistSection">
+      <summary class="section-title">Channel Allowlist</summary>
+      <div class="section-content">
+
+        <p class="section-hint">Blank Mode is skipped on allowlisted channels.</p>
+
+        <!-- Add by typing a pattern -->
+        <div class="allowlist-input-row">
+          <input
+            type="text"
+            id="allowlistInput"
+            class="allowlist-input"
+            placeholder="e.g. @veritasium or /c/kurzgesagt"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="allowlist-add-btn" id="allowlistAddBtn" aria-label="Add">+</button>
+        </div>
+
+        <!-- Auto-detect current channel -->
+        <button class="detect-btn" id="detectChannelBtn">
+          + Add current channel
+        </button>
+
+        <!-- List of saved patterns -->
+        <ul class="allowlist-list" id="allowlistList">
+          <!-- Populated by popup.js -->
+        </ul>
+
+        <p class="allowlist-empty" id="allowlistEmpty">No channels allowlisted yet.</p>
+
+      </div>
+    </details>
+
+    <!-- ── Footer ── -->
     <footer class="footer">
       <label class="debug-label">
         <input type="checkbox" id="debugToggle" />
-        <span>Enable debug logs</span>
+        <span>Debug logs in console</span>
       </label>
+      <span class="shortcut-hint" title="You can change this in Brave: brave://extensions/shortcuts">
+        Toggle: <kbd>Alt+Shift+Y</kbd>
+      </span>
     </footer>
 
   </div>

@@ -23,6 +23,16 @@ When Blank Mode is **OFF**:
 
 **Search and video playback always work regardless of the toggle.**
 
+### Phase 2 controls
+
+| Feature | Description |
+|---|---|
+| **Granular toggles** | Turn each hiding surface on/off independently |
+| **Strict mode** | Hides extra surfaces in search results and the sidebar |
+| **Pause mode** | Temporarily suspend hiding for 10 min / 30 min / 1 hour |
+| **Channel allowlist** | Skip hiding on specific channels by pattern or auto-detect |
+| **Keyboard shortcut** | `Alt+Shift+Y` toggles Blank Mode from any tab |
+
 ---
 
 ## 📸 Preview
@@ -111,6 +121,16 @@ blank-mode/
 
 ## 📋 Changelog
 
+### v0.2.0 — Phase 2: User Controls
+- **Granular toggles:** Independent ON/OFF switches for each hiding surface — homepage feed, Shorts, right-side recommendations, end-screen overlays, and autoplay
+- **Strict mode:** Additional aggressive hiding — suppresses promoted shelves in search, sidebar Explore sections, and horizontal card rows
+- **Pause mode:** Suspend all hiding for 10 min / 30 min / 1 hour with a live countdown timer; "Resume now" button to cancel early
+- **Channel allowlist:** Skip Blank Mode on specific channels — type a pattern (`@channel`, `/c/name`, or any keyword) or click "Add current channel" to auto-detect from the active tab
+- **Keyboard shortcut:** Press `Alt+Shift+Y` to toggle Blank Mode from any tab (customisable in `brave://extensions/shortcuts`)
+- **Background service worker:** Handles keyboard shortcut without requiring the popup to be open
+- **Popup redesign:** Collapsible accordion sections for Settings, Pause, and Allowlist — cleaner layout and shorter default height
+- **Live allowlist detection:** Content script reads channel info from the page DOM so the popup can auto-fill the allowlist input
+
 ### v0.1.1 — Phase 1.1: Stability & Polish
 - **Selector groups:** All selectors are now organised into named groups (`homeFeed`, `shortsShelf`, `watchRelated`, `endscreen`, etc.) making them easy to update when YouTube changes its DOM
 - **More selector coverage:** Added fallback selectors for Shorts shelves, end-screen overlays, search result promoted shelves, and sidebar explore sections
@@ -171,15 +191,45 @@ After loading the extension, run through these steps to verify everything works:
 - [ ] Turn Blank Mode ON, close and reopen Brave, open YouTube → should still be ON
 - [ ] Turn Blank Mode OFF, refresh YouTube → should stay OFF
 
+**Granular toggles**
+- [ ] Uncheck "Homepage feed" — homepage feed reappears, custom screen gone
+- [ ] Uncheck "Shorts" — Shorts shelf reappears on homepage
+- [ ] Uncheck "Right-side recommendations" — related videos reappear on watch page
+- [ ] Re-check each toggle — hiding reapplies without refresh
+
+**Strict mode**
+- [ ] Enable Strict mode, go to `/results?search_query=test` — promoted shelves hidden
+- [ ] Disable Strict mode — promoted shelves reappear in search
+
+**Pause mode**
+- [ ] Click "10 min" pause — countdown timer shows, recommendations reappear
+- [ ] Click "Resume now" — hiding reapplies immediately
+- [ ] Wait for pause to expire — hiding automatically reapplies
+
+**Channel allowlist**
+- [ ] Go to a YouTube channel page (e.g. `youtube.com/@veritasium`)
+- [ ] Open popup → click "Add current channel" → channel handle auto-filled
+- [ ] Confirm popup shows it in the allowlist list
+- [ ] Navigate to that channel — recommendations are visible (not hidden)
+- [ ] Navigate to another channel — hiding still applies
+- [ ] Click × on the allowlist item — channel is removed, hiding reapplies
+
+**Keyboard shortcut**
+- [ ] Press `Alt+Shift+Y` on a YouTube tab — Blank Mode toggles ON/OFF
+- [ ] Press shortcut on a non-YouTube tab — toggle saves, applies when YouTube opens
+
 ---
 
 ## 🗺 Roadmap
 
-- [ ] Phase 2: Add real icons and polished branding
-- [ ] Phase 2: Per-page toggle (homepage only vs. all pages)
-- [ ] Phase 2: Allowlist specific channels
+- [x] Phase 2: Granular toggles per hiding surface
+- [x] Phase 2: Channel allowlist
+- [x] Phase 2: Pause mode with countdown timer
+- [x] Phase 2: Keyboard shortcut (`Alt+Shift+Y`)
+- [x] Phase 2: Strict mode
+- [ ] Phase 3: Add real icons and polished branding
 - [ ] Phase 3: Usage stats (time saved, searches made) — stored locally
-- [ ] Phase 3: Keyboard shortcut to toggle
+- [ ] Phase 3: Keyboard shortcut customisation UI in popup
 - [ ] Future: Companion PWA for mobile
 
 ---

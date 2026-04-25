@@ -1,5 +1,5 @@
 /* ============================================================
-   Blank Mode — Popup Styles  (Phase 1.1)
+   Blank Mode — Popup Styles  (Phase 2)
    ============================================================ */
 
 *, *::before, *::after {
@@ -12,57 +12,57 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: #0f0f11;
   color: #e8e8e8;
-  width: 290px;
-  min-height: 300px;
+  width: 310px;
 }
+
+.hidden { display: none !important; }
 
 /* ── Header ── */
 .header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 18px 14px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid #1e1e24;
 }
 
 .header-text {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
 }
 
 .title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #ffffff;
-  letter-spacing: 0.2px;
 }
 
 .version {
   font-size: 10px;
-  color: #444458;
+  color: #3a3a50;
   font-weight: 500;
 }
 
-/* ── Toggle section ── */
+/* ── Master toggle ── */
 .toggle-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: #17171d;
+  padding: 12px 16px;
+  background: #14141a;
   gap: 12px;
 }
 
 .toggle-label-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
 }
 
 .toggle-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #f0f0f0;
 }
@@ -70,149 +70,376 @@ body {
 .toggle-description {
   font-size: 11px;
   color: #8888a0;
-  line-height: 1.3;
+  transition: color 0.2s;
 }
-
-/* Animate description text color on state change */
 .toggle-description.on  { color: #4caf82; }
 .toggle-description.off { color: #8888a0; }
 
-/* ── Toggle switch ── */
+/* Toggle switch */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 42px;
+  height: 23px;
   flex-shrink: 0;
 }
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
 
 .slider {
   position: absolute;
   inset: 0;
-  background: #2e2e3e;
+  background: #2a2a3a;
   border-radius: 34px;
   cursor: pointer;
-  transition: background 0.25s ease;
+  transition: background 0.22s;
 }
-
 .slider::before {
   content: "";
   position: absolute;
-  height: 18px;
-  width: 18px;
+  height: 17px;
+  width: 17px;
   left: 3px;
   bottom: 3px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 50%;
-  transition: transform 0.25s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.22s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
-
-.toggle-switch input:checked + .slider {
-  background: #e63946;
-}
-
-.toggle-switch input:checked + .slider::before {
-  transform: translateX(20px);
-}
-
-.toggle-switch input:focus-visible + .slider {
-  outline: 2px solid #e63946;
-  outline-offset: 2px;
-}
+.toggle-switch input:checked + .slider            { background: #e63946; }
+.toggle-switch input:checked + .slider::before    { transform: translateX(19px); }
+.toggle-switch input:focus-visible + .slider      { outline: 2px solid #e63946; outline-offset: 2px; }
 
 /* ── Status bar ── */
 .status-bar {
   font-size: 11px;
   text-align: center;
-  padding: 0 18px;
-  height: 26px;
-  line-height: 26px;
+  padding: 0 16px;
+  height: 24px;
+  line-height: 24px;
   color: transparent;
-  border-bottom: 1px solid #1e1e24;
-  transition: color 0.2s;
-  white-space: nowrap;
+  border-bottom: 1px solid #1a1a22;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
+  transition: color 0.18s;
 }
-
 .status-bar.success { color: #4caf82; }
 .status-bar.warn    { color: #f0a500; }
 .status-bar.error   { color: #e63946; }
+.status-bar.info    { color: #7878a8; }
 
-/* ── Features list ── */
-.features {
-  padding: 12px 18px 14px;
+/* ══════════════════════════════════════════════════════════
+   ACCORDION SECTIONS  (HTML <details>/<summary>)
+══════════════════════════════════════════════════════════ */
+
+.section {
+  border-bottom: 1px solid #1a1a22;
 }
 
-.features-title {
+.section-title {
+  padding: 9px 16px;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #555568;
-  margin-bottom: 7px;
+  text-transform: uppercase;
+  color: #555570;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;           /* remove default triangle */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color 0.15s;
+}
+.section-title:hover { color: #9090b0; }
+
+/* Custom chevron */
+.section-title::after {
+  content: "▾";
+  font-size: 9px;
+  color: #333348;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+details[open] > .section-title::after {
+  transform: rotate(-180deg);
+}
+/* Remove default Firefox marker */
+.section-title::-webkit-details-marker { display: none; }
+
+.section-content {
+  padding: 4px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.features ul {
+/* Hint text at top of each section */
+.section-hint {
+  font-size: 11px;
+  color: #444458;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* ── Granular toggle rows ── */
+.row-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  cursor: pointer;
+  gap: 10px;
+}
+.row-toggle:hover .row-label { color: #d0d0e8; }
+
+.row-label {
+  font-size: 12px;
+  color: #a0a0bc;
+  transition: color 0.15s;
+  flex: 1;
+}
+
+.row-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+
+.row-sublabel {
+  font-size: 10px;
+  color: #484860;
+  line-height: 1.3;
+}
+
+/* Mini checkbox for setting rows */
+.setting-check {
+  width: 14px;
+  height: 14px;
+  accent-color: #e63946;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.strict-row {
+  margin-top: 2px;
+}
+
+.divider {
+  height: 1px;
+  background: #1a1a22;
+  margin: 6px 0;
+}
+
+/* ── Pause section ── */
+.pause-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pause-btn {
+  flex: 1;
+  padding: 7px 4px;
+  background: #1e1e28;
+  border: 1px solid #2e2e40;
+  border-radius: 8px;
+  color: #a0a0bc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.pause-btn:hover {
+  background: #28283a;
+  border-color: #e63946;
+  color: #e8e8f0;
+}
+.pause-btn:active { background: #e63946; color: #fff; border-color: #e63946; }
+
+/* Active pause state */
+.pause-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #1a1a10;
+  border: 1px solid #3a3010;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.pause-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.pause-label {
+  font-size: 12px;
+  color: #f0a500;
+  font-weight: 600;
+}
+
+.pause-countdown {
+  font-size: 11px;
+  color: #806020;
+  margin-top: 2px;
+}
+
+.resume-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid #3a3010;
+  border-radius: 8px;
+  color: #f0a500;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.resume-btn:hover { background: #2a2000; border-color: #f0a500; }
+
+/* ── Allowlist section ── */
+.allowlist-input-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.allowlist-input {
+  flex: 1;
+  background: #1a1a22;
+  border: 1px solid #2a2a38;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #d0d0e8;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.allowlist-input:focus { border-color: #e63946; }
+.allowlist-input::placeholder { color: #383850; }
+
+.allowlist-add-btn {
+  width: 30px;
+  height: 30px;
+  background: #e63946;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.allowlist-add-btn:hover { background: #c82333; }
+
+.detect-btn {
+  width: 100%;
+  padding: 7px;
+  background: #1a1a22;
+  border: 1px dashed #2a2a3c;
+  border-radius: 8px;
+  color: #6868a0;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.detect-btn:hover { background: #202030; border-color: #e63946; color: #a0a0c8; }
+
+.allowlist-list {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 9px;
+  margin-top: 2px;
 }
 
-.features ul li {
-  font-size: 12px;
-  color: #9090a8;
-  padding-left: 14px;
-  position: relative;
-  line-height: 1.4;
+.allowlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #18181e;
+  border: 1px solid #242430;
+  border-radius: 6px;
+  padding: 5px 8px 5px 10px;
 }
 
-.features ul li::before {
-  content: "–";
-  position: absolute;
-  left: 0;
-  color: #e63946;
-  font-weight: 700;
-}
-
-.features-note {
+.allowlist-item-text {
   font-size: 11px;
-  color: #444458;
+  color: #8080a8;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ── Footer / debug toggle ── */
+.allowlist-remove-btn {
+  background: none;
+  border: none;
+  color: #444458;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 0 0 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.allowlist-remove-btn:hover { color: #e63946; }
+
+.allowlist-empty {
+  font-size: 11px;
+  color: #2e2e42;
+  text-align: center;
+  padding: 6px 0;
+}
+
+/* ── Footer ── */
 .footer {
-  border-top: 1px solid #1e1e24;
-  padding: 10px 18px;
+  border-top: 1px solid #1a1a22;
+  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .debug-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
-  font-size: 11px;
-  color: #444458;
+  font-size: 10px;
+  color: #333348;
   user-select: none;
+  transition: color 0.15s;
+}
+.debug-label:hover { color: #555570; }
+.debug-label input[type="checkbox"] { accent-color: #e63946; width: 12px; height: 12px; cursor: pointer; }
+
+.shortcut-hint {
+  font-size: 10px;
+  color: #2e2e42;
+  white-space: nowrap;
+  cursor: help;
 }
 
-.debug-label:hover {
-  color: #666680;
-}
-
-.debug-label input[type="checkbox"] {
-  accent-color: #e63946;
-  width: 13px;
-  height: 13px;
-  cursor: pointer;
+kbd {
+  background: #1e1e2a;
+  border: 1px solid #2e2e3e;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-family: monospace;
+  color: #555570;
 }

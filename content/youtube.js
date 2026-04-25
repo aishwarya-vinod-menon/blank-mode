@@ -497,62 +497,52 @@ function handleUrlChange() {
 function setupMessageListener() {
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
-    // Master toggle
+    // Use else-if so only one branch runs per message.
+    // All responses are synchronous — do NOT return true (that would
+    // incorrectly signal async, corrupting subsequent message channels).
+
     if (msg.type === "BLANK_MODE_TOGGLE") {
       blankModeEnabled = msg.enabled;
       applyDetox();
       log("Toggle →", blankModeEnabled);
       sendResponse({ status: "ok", enabled: blankModeEnabled });
-    }
 
-    // Granular settings updated (any individual toggle or strict mode)
-    if (msg.type === "SETTINGS_UPDATE") {
+    } else if (msg.type === "SETTINGS_UPDATE") {
       settings = Object.assign({}, DEFAULT_SETTINGS, msg.settings);
       applyDetox();
       log("Settings updated:", settings);
       sendResponse({ status: "ok" });
-    }
 
-    // Pause started
-    if (msg.type === "PAUSE_SET") {
+    } else if (msg.type === "PAUSE_SET") {
       pauseUntil = msg.pauseUntil;
       schedulePauseExpiry();
       applyDetox();
       log("Pause set until:", new Date(pauseUntil).toLocaleTimeString());
       sendResponse({ status: "ok" });
-    }
 
-    // Pause cleared (Resume Now)
-    if (msg.type === "PAUSE_CLEAR") {
+    } else if (msg.type === "PAUSE_CLEAR") {
       pauseUntil = 0;
       clearTimeout(pauseTimer);
       applyDetox();
       log("Pause cleared.");
       sendResponse({ status: "ok" });
-    }
 
-    // Allowlist updated
-    if (msg.type === "ALLOWLIST_UPDATE") {
+    } else if (msg.type === "ALLOWLIST_UPDATE") {
       allowlist = Array.isArray(msg.allowlist) ? msg.allowlist : [];
       applyDetox();
       log("Allowlist updated:", allowlist);
       sendResponse({ status: "ok" });
-    }
 
-    // Popup requests channel info to pre-fill the allowlist input
-    if (msg.type === "GET_CHANNEL_INFO") {
+    } else if (msg.type === "GET_CHANNEL_INFO") {
       const info = getChannelInfo();
       log("Channel info requested:", info);
       sendResponse({ channelInfo: info });
-    }
 
-    // Debug mode toggle
-    if (msg.type === "BLANK_MODE_DEBUG") {
+    } else if (msg.type === "BLANK_MODE_DEBUG") {
       DEBUG = msg.debug;
       sendResponse({ status: "ok" });
     }
 
-    // Return true to keep the message channel open for async sendResponse.
-    return true;
+    // Return false (implicit) — all responses above are synchronous.
   });
 }

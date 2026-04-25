@@ -267,11 +267,11 @@ function renderAllowlist() {
   allowlistList.innerHTML = "";
 
   if (!currentAllowlist.length) {
-    allowlistEmpty.classList.remove("hidden");
+    allowlistEmpty.classList.remove("hidden"); // show "no channels" hint
     return;
   }
 
-  allowlistEmpty.classList.add("hidden");
+  allowlistEmpty.classList.add("hidden"); // hide hint when list has items
 
   currentAllowlist.forEach((pattern, index) => {
     const li = document.createElement("li");

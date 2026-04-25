@@ -136,14 +136,37 @@ function schedulePauseExpiry() {
 
 /**
  * isAllowlisted
- * Returns true if the current page URL matches any pattern in the
- * allowlist. Matching is case-insensitive substring search so users
- * can add things like "@3blue1brown" or "veritasium".
+ * Returns true if the current page matches any allowlist pattern.
+ *
+ * Two checks are done:
+ *   1. URL check — works for channel pages (/@handle, /c/name)
+ *   2. DOM check — works for watch pages where the channel handle
+ *      never appears in the URL (/watch?v=xxx)
+ *
+ * Both are case-insensitive substring matches so users can add
+ * "@3blue1brown", "veritasium", or "/c/kurzgesagt".
  */
 function isAllowlisted() {
   if (!allowlist.length) return false;
+
   const url = location.href.toLowerCase();
-  return allowlist.some((pattern) => url.includes(pattern.toLowerCase()));
+
+  // 1. URL match (channel pages, search pages with a channel filter, etc.)
+  if (allowlist.some((p) => url.includes(p.toLowerCase()))) return true;
+
+  // 2. DOM match — read the uploader/channel from the page itself.
+  //    Essential for watch pages where the URL is just /watch?v=ID.
+  const channelInfo = getChannelInfo();
+  if (channelInfo) {
+    const infoLower = channelInfo.toLowerCase();
+    return allowlist.some((p) => {
+      const pLower = p.toLowerCase();
+      // Match if either contains the other (handles "@handle" vs "handle" etc.)
+      return infoLower.includes(pLower) || pLower.includes(infoLower);
+    });
+  }
+
+  return false;
 }
 
 /**

@@ -237,17 +237,28 @@ const SELECTOR_GROUPS = {
   ],
 
   shortsShelf: [
-    "ytd-rich-section-renderer",
+    // Shorts row on the homepage grid — target the row AND its specific inner element
+    "ytd-rich-section-renderer:has(ytd-reel-shelf-renderer)",
+    "ytd-rich-section-renderer:has(ytd-reel-item-renderer)",
+    "ytd-rich-section-renderer",       // broad fallback if :has() doesn't match
     "ytd-reel-shelf-renderer",
+    // Standalone Shorts elements and tab page
     "ytd-shorts",
     "ytd-inline-shorts-renderer",
-    "ytd-reel-item-renderer",          // individual Shorts cards on homepage
+    "ytd-browse[page-subtype='shorts']",
+    // Individual Shorts cards inside the homepage grid
+    "ytd-rich-item-renderer:has(ytd-reel-item-renderer)",
+    "ytd-reel-item-renderer",
   ],
 
   shortsSidebarLinks: [
-    "ytd-guide-entry-renderer a[href='/shorts']",
-    "ytd-mini-guide-entry-renderer a[href='/shorts']",
-    "#endpoint[href='/shorts']",
+    // IMPORTANT: use :has() to select the PARENT guide-entry container.
+    // Hiding just the <a> inside left an invisible empty slot in the sidebar.
+    "ytd-guide-entry-renderer:has(a[href='/shorts'])",
+    "ytd-mini-guide-entry-renderer:has(a[href='/shorts'])",
+    // Fallback: match by the title text on the icon
+    "ytd-guide-entry-renderer:has(yt-formatted-string[title='Shorts'])",
+    "ytd-mini-guide-entry-renderer:has(yt-icon[icon='shorts'])",
   ],
 
   watchRelated: [

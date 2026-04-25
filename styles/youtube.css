@@ -1,0 +1,160 @@
+/* ============================================================
+   Blank Mode — styles/youtube.css
+   Injected into every YouTube page.
+
+   Two responsibilities:
+     1. Hide recommendation surfaces via .blank-mode-hidden
+     2. Style the custom homepage replacement screen (#blank-mode-home)
+   ============================================================ */
+
+
+/* ── 1. Hiding utility class ────────────────────────────────
+   Applied by content/youtube.js to recommendation elements.
+   Using !important so YouTube's own inline styles don't win.
+   ─────────────────────────────────────────────────────────── */
+.blank-mode-hidden {
+  display:    none !important;
+  visibility: hidden !important;
+  opacity:    0 !important;
+  pointer-events: none !important;
+}
+
+
+/* ── 2. Homepage replacement screen ─────────────────────────
+   Full-viewport overlay injected when the user is on the
+   YouTube homepage and Blank Mode is ON.
+   ─────────────────────────────────────────────────────────── */
+
+#blank-mode-home {
+  /* Cover the full viewport above all YouTube content */
+  position: fixed;
+  inset: 0;                  /* top/right/bottom/left: 0 */
+  z-index: 9999;
+
+  /* Dark, calm background that matches YouTube's dark theme */
+  background-color: #0f0f11;
+
+  /* Centre the inner card */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Smooth appearance */
+  animation: bm-fade-in 0.25s ease;
+}
+
+@keyframes bm-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Inner content card */
+.bm-home-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 40px 32px;
+  max-width: 520px;
+  width: 90%;
+}
+
+/* "Blank Mode is ON" badge */
+.bm-badge {
+  display: inline-block;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #e63946;
+  background: rgba(230, 57, 70, 0.12);
+  border: 1px solid rgba(230, 57, 70, 0.3);
+  border-radius: 100px;
+  padding: 4px 14px;
+}
+
+/* Main heading */
+.bm-heading {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 700;
+  color: #f0f0f0;
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Subtitle */
+.bm-subtext {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #8888a0;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 360px;
+}
+
+/* ── Search form ── */
+.bm-search-form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  margin-top: 8px;
+  background: #1a1a22;
+  border: 1.5px solid #2e2e3e;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.bm-search-form:focus-within {
+  border-color: #e63946;
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.15);
+}
+
+/* Text input */
+.bm-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 14px 18px;
+  font-size: 15px;
+  color: #e8e8e8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  caret-color: #e63946;
+}
+
+.bm-search-input::placeholder {
+  color: #555570;
+}
+
+/* Search submit button */
+.bm-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e63946;
+  border: none;
+  cursor: pointer;
+  padding: 0 18px;
+  height: 100%;
+  min-height: 50px;
+  color: #ffffff;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.bm-search-btn:hover {
+  background: #c82333;
+}
+
+.bm-search-btn:active {
+  background: #a71d2a;
+}
+
+.bm-search-btn svg {
+  display: block;
+}

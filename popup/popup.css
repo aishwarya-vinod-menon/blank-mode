@@ -1,0 +1,187 @@
+/* ============================================================
+   Blank Mode — Popup Styles
+   Minimal, calm, readable.
+   ============================================================ */
+
+/* Reset & base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #0f0f11;
+  color: #e8e8e8;
+  width: 280px;
+  min-height: 300px;
+  padding: 0;
+}
+
+/* Outer container */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #1e1e24;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+}
+
+/* ── Toggle section ── */
+.toggle-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: #17171d;
+}
+
+.toggle-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f0f0;
+}
+
+.toggle-description {
+  font-size: 11px;
+  color: #8888a0;
+  line-height: 1.3;
+}
+
+/* ── Toggle switch (pill style) ── */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #333340;
+  border-radius: 34px;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+}
+
+/* Checked (ON) state */
+.toggle-switch input:checked + .slider {
+  background: #e63946;
+}
+
+.toggle-switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+/* Focus ring for accessibility */
+.toggle-switch input:focus-visible + .slider {
+  outline: 2px solid #e63946;
+  outline-offset: 2px;
+}
+
+/* ── Status bar ── */
+.status-bar {
+  font-size: 11px;
+  text-align: center;
+  padding: 0 18px;
+  height: 28px;
+  line-height: 28px;
+  color: #8888a0;
+  transition: color 0.2s;
+  border-bottom: 1px solid #1e1e24;
+}
+
+.status-bar.success {
+  color: #4caf82;
+}
+
+.status-bar.warn {
+  color: #f0a500;
+}
+
+/* ── Features list ── */
+.features {
+  padding: 14px 18px 18px;
+}
+
+.features-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6666808;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  color: #666680;
+}
+
+.features ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.features ul li {
+  font-size: 12px;
+  color: #9999b0;
+  padding-left: 14px;
+  position: relative;
+}
+
+.features ul li::before {
+  content: "–";
+  position: absolute;
+  left: 0;
+  color: #e63946;
+  font-weight: 700;
+}
+
+.features-note {
+  font-size: 11px;
+  color: #555568;
+  margin-top: 4px;
+}

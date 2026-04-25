@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Blank Mode",
+  "version": "0.1.0",
+  "description": "Hide recommendation feeds and turn YouTube into a search-first experience.",
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab"
+  ],
+
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Blank Mode"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content/youtube.js"],
+      "css": ["styles/youtube.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "icons": {}
+}

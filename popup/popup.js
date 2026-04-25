@@ -1,79 +1,135 @@
 // ============================================================
-// Blank Mode — popup.js
-// Controls the popup toggle and communicates with the active
-// YouTube tab via chrome.tabs.sendMessage.
+// Blank Mode — popup.js  (Phase 1.1)
+// Manages the popup UI, persists settings, and messages the
+// active YouTube tab live via chrome.tabs.sendMessage.
 // ============================================================
 
-const toggle    = document.getElementById("blankModeToggle");
-const statusBar = document.getElementById("statusBar");
+"use strict";
 
-// ── Load saved setting when the popup opens ──────────────────
-chrome.storage.local.get("blankModeEnabled", (result) => {
-  // Default to false (OFF) if never set before
+const toggle      = document.getElementById("blankModeToggle");
+const statusBar   = document.getElementById("statusBar");
+const description = document.getElementById("toggleDescription");
+const debugToggle = document.getElementById("debugToggle");
+
+// ── Load all settings when the popup opens ───────────────────
+chrome.storage.local.get(["blankModeEnabled", "blankModeDebug"], (result) => {
   const enabled = result.blankModeEnabled === true;
-  toggle.checked = enabled;
-  console.log("[Blank Mode Popup] Loaded setting:", enabled);
+  const debug   = result.blankModeDebug   === true;
+
+  toggle.checked      = enabled;
+  debugToggle.checked = debug;
+
+  updateDescription(enabled);
 });
 
-// ── Listen for toggle changes ────────────────────────────────
+// ── Main toggle change ───────────────────────────────────────
 toggle.addEventListener("change", () => {
   const enabled = toggle.checked;
 
-  // 1. Save the new value to local storage so the content script
-  //    can read it on the next page load too.
-  chrome.storage.local.set({ blankModeEnabled: enabled }, () => {
-    console.log("[Blank Mode Popup] Saved blankModeEnabled =", enabled);
-  });
+  // Persist to storage first
+  chrome.storage.local.set({ blankModeEnabled: enabled });
 
-  // 2. Try to send a live message to the active YouTube tab so
-  //    it can apply / remove detox mode without a full refresh.
-  sendMessageToActiveTab(enabled);
+  // Update the description text below the toggle label
+  updateDescription(enabled);
+
+  // Try to apply change live in the active YouTube tab
+  sendToggleMessage(enabled);
 });
 
-// ── Send message to the active tab's content script ─────────
-function sendMessageToActiveTab(enabled) {
-  // Query for the currently active tab in the focused window
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tab = tabs[0];
+// ── Debug toggle change ──────────────────────────────────────
+debugToggle.addEventListener("change", () => {
+  const debug = debugToggle.checked;
 
-    // Only attempt if the active tab is a YouTube page
-    if (!tab || !tab.url || !tab.url.includes("youtube.com")) {
-      showStatus("Open YouTube to see changes.", "warn");
+  chrome.storage.local.set({ blankModeDebug: debug });
+
+  // Notify the content script so it updates without a reload
+  sendDebugMessage(debug);
+});
+
+// ── Send toggle message to active YouTube tab ────────────────
+function sendToggleMessage(enabled) {
+  getActiveYouTubeTab((tab) => {
+    if (!tab) {
+      showStatus(
+        enabled
+          ? "Saved. Open YouTube to activate."
+          : "Saved. Open YouTube to deactivate.",
+        "warn"
+      );
       return;
     }
 
-    // Send the message to the content script running on that tab
     chrome.tabs.sendMessage(
       tab.id,
-      { type: "BLANK_MODE_TOGGLE", enabled: enabled },
+      { type: "BLANK_MODE_TOGGLE", enabled },
       (response) => {
         if (chrome.runtime.lastError) {
-          // Content script may not be ready yet (e.g. tab just opened).
-          // This is non-fatal — the content script will read storage on load.
-          console.warn(
-            "[Blank Mode Popup] Could not reach content script:",
-            chrome.runtime.lastError.message
-          );
-          showStatus("Refresh YouTube to apply changes.", "warn");
+          // Content script not ready — setting is already saved to storage
+          // so it will be read correctly on the next page load.
+          showStatus("Saved. Refresh YouTube to apply.", "warn");
         } else {
-          // Content script acknowledged the message
-          const label = enabled ? "Blank Mode ON" : "Blank Mode OFF";
-          showStatus(label, "success");
-          console.log("[Blank Mode Popup] Content script responded:", response);
+          showStatus(
+            enabled ? "Blank Mode ON — feed hidden" : "Blank Mode OFF — feed restored",
+            "success"
+          );
         }
       }
     );
   });
 }
 
-// ── Show a temporary status message in the status bar ────────
+// ── Send debug mode message to active YouTube tab ────────────
+function sendDebugMessage(debug) {
+  getActiveYouTubeTab((tab) => {
+    if (!tab) return;
+
+    chrome.tabs.sendMessage(
+      tab.id,
+      { type: "BLANK_MODE_DEBUG", debug },
+      () => {
+        // Suppress runtime errors — non-critical if tab isn't ready
+        void chrome.runtime.lastError;
+      }
+    );
+  });
+}
+
+// ── Helper: get active YouTube tab ───────────────────────────
+/**
+ * Finds the currently active tab.
+ * Calls back with the tab object if it's a YouTube tab, or null otherwise.
+ *
+ * @param {(tab: chrome.tabs.Tab|null) => void} callback
+ */
+function getActiveYouTubeTab(callback) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    const isYouTube = tab && tab.url && tab.url.includes("youtube.com");
+    callback(isYouTube ? tab : null);
+  });
+}
+
+// ── Update toggle description text ───────────────────────────
+function updateDescription(enabled) {
+  description.textContent = enabled
+    ? "Active — recommendations are hidden"
+    : "Inactive — YouTube is unchanged";
+
+  description.className = "toggle-description " + (enabled ? "on" : "off");
+}
+
+// ── Show a temporary status message ──────────────────────────
+/**
+ * @param {string} message
+ * @param {"success"|"warn"|"error"|""} type
+ */
 function showStatus(message, type = "") {
   statusBar.textContent = message;
   statusBar.className   = "status-bar " + type;
 
-  // Clear the message after 3 seconds
-  setTimeout(() => {
+  clearTimeout(showStatus._timer);
+  showStatus._timer = setTimeout(() => {
     statusBar.textContent = "";
     statusBar.className   = "status-bar";
-  }, 3000);
+  }, 3500);
 }

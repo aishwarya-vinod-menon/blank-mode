@@ -13,44 +13,53 @@
     <!-- Header -->
     <header class="header">
       <div class="logo">
-        <!-- Simple SVG icon: a clean square with a slash through a play button -->
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="2" width="20" height="20" rx="4" fill="#e63946" />
           <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="2" stroke-linecap="round"/>
           <polygon points="10,8 16,12 10,16" fill="white" opacity="0.4"/>
         </svg>
       </div>
-      <h1 class="title">Blank Mode</h1>
+      <div class="header-text">
+        <h1 class="title">Blank Mode</h1>
+        <span class="version">v0.1.1</span>
+      </div>
     </header>
 
-    <!-- Main toggle section -->
+    <!-- Main toggle -->
     <div class="toggle-section">
       <div class="toggle-label-group">
         <span class="toggle-label">YouTube Detox Mode</span>
-        <span class="toggle-description">Recommendations hidden when enabled</span>
+        <span class="toggle-description" id="toggleDescription">Recommendations hidden when enabled</span>
       </div>
-
-      <!-- Toggle switch -->
       <label class="toggle-switch" aria-label="Toggle Blank Mode">
         <input type="checkbox" id="blankModeToggle" />
         <span class="slider"></span>
       </label>
     </div>
 
-    <!-- Status message shown after toggling -->
-    <div class="status-bar" id="statusBar" aria-live="polite"></div>
+    <!-- Status bar (shows feedback after toggle) -->
+    <div class="status-bar" id="statusBar" aria-live="polite" role="status"></div>
 
-    <!-- Feature list: a subtle reminder of what's hidden -->
+    <!-- What's hidden list -->
     <div class="features">
       <p class="features-title">When ON, hides:</p>
       <ul>
         <li>Homepage feed &amp; recommendations</li>
-        <li>YouTube Shorts</li>
+        <li>YouTube Shorts shelf &amp; sidebar links</li>
         <li>Right-side "Up Next" suggestions</li>
-        <li>End-screen overlays</li>
+        <li>End-screen overlays &amp; autoplay</li>
+        <li>Promoted shelves in search results</li>
       </ul>
       <p class="features-note">Search &amp; video playback always work.</p>
     </div>
+
+    <!-- Footer: debug toggle -->
+    <footer class="footer">
+      <label class="debug-label">
+        <input type="checkbox" id="debugToggle" />
+        <span>Enable debug logs</span>
+      </label>
+    </footer>
 
   </div>
 

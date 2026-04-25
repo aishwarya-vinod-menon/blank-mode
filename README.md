@@ -109,6 +109,70 @@ blank-mode/
 
 ---
 
+## 📋 Changelog
+
+### v0.1.1 — Phase 1.1: Stability & Polish
+- **Selector groups:** All selectors are now organised into named groups (`homeFeed`, `shortsShelf`, `watchRelated`, `endscreen`, etc.) making them easy to update when YouTube changes its DOM
+- **More selector coverage:** Added fallback selectors for Shorts shelves, end-screen overlays, search result promoted shelves, and sidebar explore sections
+- **Page guards:** Hiding logic is now scoped per page type (home / watch / search / shorts) to avoid unnecessary selector work
+- **Direct Shorts URL handling:** Suppresses navigation arrows and overlay suggestions when visiting `/shorts/...` directly
+- **Search results cleanup:** Hides promoted video shelves and "People also watched" rows without touching organic results
+- **Debug mode:** Added `blankModeDebug` storage flag — toggle in the popup footer to see `[Blank Mode]` logs in DevTools console
+- **Popup improvements:** Live description updates, version badge, cleaner status messages, debug toggle in footer
+- **`/feed/*` pages:** Homepage guard now covers `/feed/trending`, `/feed/subscriptions` etc.
+- **Cleaner console:** All logs are behind the debug flag by default — no noise in production
+
+### v0.1.0 — Phase 1: MVP
+- Initial release: popup toggle, homepage replacement, basic recommendation hiding
+
+---
+
+## 🧪 Test Checklist
+
+After loading the extension, run through these steps to verify everything works:
+
+**Setup**
+- [ ] Extension loads at `brave://extensions` without errors
+- [ ] Blank Mode icon appears in toolbar (pin it via puzzle-piece menu)
+
+**Popup**
+- [ ] Popup opens when clicking the icon
+- [ ] Toggle shows correct OFF state by default (first install)
+- [ ] Description text below label changes when toggled
+- [ ] Status bar shows feedback message after toggling
+- [ ] Debug toggle in footer is present
+
+**Homepage (youtube.com)**
+- [ ] With Blank Mode OFF: normal YouTube homepage loads
+- [ ] With Blank Mode ON: homepage feed is replaced with dark search screen
+- [ ] "What are you here to watch?" heading is visible
+- [ ] Custom search box accepts input and redirects to `/results?search_query=...`
+- [ ] Pressing Enter in the search box also redirects
+- [ ] Shorts shelf row is hidden
+- [ ] Topic filter chips (trending categories) are hidden
+
+**Watch page (youtube.com/watch?v=...)**
+- [ ] Video player loads and plays normally
+- [ ] Right-side "Up Next" / related panel is hidden
+- [ ] End-screen overlays are hidden or suppressed
+- [ ] Autoplay banner is hidden
+
+**Search results (youtube.com/results?search_query=...)**
+- [ ] Regular video results are visible (not hidden)
+- [ ] Promoted shelves ("People also watched") are hidden
+- [ ] Search box at top of YouTube still works
+
+**Toggle live behavior**
+- [ ] Toggle ON while on YouTube homepage → feed disappears immediately (no refresh)
+- [ ] Toggle OFF while on homepage → feed reappears immediately
+- [ ] Navigate homepage → watch → back to homepage with Blank Mode ON → replacement reappears correctly
+
+**Persistence**
+- [ ] Turn Blank Mode ON, close and reopen Brave, open YouTube → should still be ON
+- [ ] Turn Blank Mode OFF, refresh YouTube → should stay OFF
+
+---
+
 ## 🗺 Roadmap
 
 - [ ] Phase 2: Add real icons and polished branding

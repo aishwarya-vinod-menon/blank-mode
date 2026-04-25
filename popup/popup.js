@@ -1,24 +1,23 @@
 // ============================================================
-// Blank Mode — popup.js  (Phase 2)
-// Handles all popup logic: master toggle, granular settings,
-// pause mode, channel allowlist, and debug toggle.
+// Blank Mode — popup.js  (Phase 2, simplified)
+// Master toggle, pause mode, channel allowlist, debug toggle.
+// Granular per-feature toggles removed — everything hides together.
 // ============================================================
 
 "use strict";
 
 // ── DOM references ───────────────────────────────────────────
-const masterToggle  = document.getElementById("blankModeToggle");
-const statusBar     = document.getElementById("statusBar");
-const description   = document.getElementById("toggleDescription");
-const debugToggle   = document.getElementById("debugToggle");
-const settingChecks = document.querySelectorAll(".setting-check");
+const masterToggle = document.getElementById("blankModeToggle");
+const statusBar    = document.getElementById("statusBar");
+const description  = document.getElementById("toggleDescription");
+const debugToggle  = document.getElementById("debugToggle");
 
 // Pause
-const pauseOptions  = document.getElementById("pauseOptions");
-const pauseActive   = document.getElementById("pauseActive");
-const pauseCountdown= document.getElementById("pauseCountdown");
-const resumeBtn     = document.getElementById("resumeBtn");
-const pauseBtns     = document.querySelectorAll(".pause-btn");
+const pauseOptions   = document.getElementById("pauseOptions");
+const pauseActive    = document.getElementById("pauseActive");
+const pauseCountdown = document.getElementById("pauseCountdown");
+const resumeBtn      = document.getElementById("resumeBtn");
+const pauseBtns      = document.querySelectorAll(".pause-btn");
 
 // Allowlist
 const allowlistInput  = document.getElementById("allowlistInput");
@@ -28,36 +27,20 @@ const allowlistList   = document.getElementById("allowlistList");
 const allowlistEmpty  = document.getElementById("allowlistEmpty");
 
 // ── Local state ──────────────────────────────────────────────
-let currentSettings = {};
-let currentAllowlist = [];
-let pauseUntil = 0;
+let currentAllowlist  = [];
+let pauseUntil        = 0;
 let countdownInterval = null;
-
-// Default granular settings (mirrors content script defaults)
-const DEFAULT_SETTINGS = {
-  hideHomeFeed:  true,
-  hideShorts:    true,
-  hideRightRail: true,
-  hideEndscreen: true,
-  hideAutoplay:  true,
-  strictMode:    false,
-};
 
 // ── Load all settings on popup open ─────────────────────────
 chrome.storage.local.get(
-  ["blankModeEnabled", "blankModeDebug", "bmSettings", "bmAllowlist", "bmPauseUntil"],
+  ["blankModeEnabled", "blankModeDebug", "bmAllowlist", "bmPauseUntil"],
   (result) => {
-    const enabled  = result.blankModeEnabled === true;
-    const debug    = result.blankModeDebug   === true;
-    currentSettings  = Object.assign({}, DEFAULT_SETTINGS, result.bmSettings  || {});
-    currentAllowlist = Array.isArray(result.bmAllowlist) ? result.bmAllowlist : [];
-    pauseUntil       = Number(result.bmPauseUntil) || 0;
+    masterToggle.checked = result.blankModeEnabled === true;
+    debugToggle.checked  = result.blankModeDebug   === true;
+    currentAllowlist     = Array.isArray(result.bmAllowlist) ? result.bmAllowlist : [];
+    pauseUntil           = Number(result.bmPauseUntil) || 0;
 
-    // Apply to UI
-    masterToggle.checked  = enabled;
-    debugToggle.checked   = debug;
-    updateDescription(enabled);
-    applySettingsToUI(currentSettings);
+    updateDescription(masterToggle.checked);
     renderAllowlist();
     updatePauseUI();
   }
@@ -87,38 +70,9 @@ function updateDescription(enabled) {
 }
 
 // ════════════════════════════════════════════════════════════
-// GRANULAR SETTINGS
-// ════════════════════════════════════════════════════════════
-
-// Apply saved setting values to the checkbox UI
-function applySettingsToUI(settings) {
-  settingChecks.forEach((checkbox) => {
-    const key = checkbox.dataset.key;
-    if (key in settings) checkbox.checked = settings[key];
-  });
-}
-
-// Listen for any setting checkbox change
-settingChecks.forEach((checkbox) => {
-  checkbox.addEventListener("change", () => {
-    const key = checkbox.dataset.key;
-    currentSettings[key] = checkbox.checked;
-
-    chrome.storage.local.set({ bmSettings: currentSettings });
-
-    sendToYouTube(
-      { type: "SETTINGS_UPDATE", settings: currentSettings },
-      "Settings updated",
-      "success"
-    );
-  });
-});
-
-// ════════════════════════════════════════════════════════════
 // PAUSE MODE
 // ════════════════════════════════════════════════════════════
 
-// "10 min / 30 min / 1 hr" buttons
 pauseBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
     const minutes = parseInt(btn.dataset.minutes, 10);
@@ -132,7 +86,6 @@ pauseBtns.forEach((btn) => {
   });
 });
 
-// "Resume now" button
 resumeBtn.addEventListener("click", () => {
   pauseUntil = 0;
   chrome.storage.local.set({ bmPauseUntil: 0 });
@@ -142,11 +95,6 @@ resumeBtn.addEventListener("click", () => {
   showStatus("Resumed — hiding is active again", "success");
 });
 
-/**
- * updatePauseUI
- * Switches between "choose pause duration" and "pause active" views.
- * Also starts/stops the live countdown timer.
- */
 function updatePauseUI() {
   const paused = pauseUntil > 0 && Date.now() < pauseUntil;
 
@@ -156,7 +104,7 @@ function updatePauseUI() {
   clearInterval(countdownInterval);
 
   if (paused) {
-    renderCountdown(); // render immediately
+    renderCountdown();
     countdownInterval = setInterval(() => {
       if (Date.now() >= pauseUntil) {
         pauseUntil = 0;
@@ -169,7 +117,6 @@ function updatePauseUI() {
   }
 }
 
-/** Formats the remaining pause time as "X min Y sec remaining". */
 function renderCountdown() {
   const remaining = Math.max(0, pauseUntil - Date.now());
   const totalSec  = Math.ceil(remaining / 1000);
@@ -185,7 +132,6 @@ function renderCountdown() {
 // CHANNEL ALLOWLIST
 // ════════════════════════════════════════════════════════════
 
-// Add pattern from text input
 allowlistAddBtn.addEventListener("click", addFromInput);
 allowlistInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") addFromInput();
@@ -198,22 +144,21 @@ function addFromInput() {
   allowlistInput.value = "";
 }
 
-// Auto-detect current channel from the active YouTube tab
 detectBtn.addEventListener("click", () => {
   detectBtn.textContent = "Detecting…";
-  detectBtn.disabled = true;
+  detectBtn.disabled    = true;
 
   getActiveYouTubeTab((tab) => {
     if (!tab) {
       detectBtn.textContent = "+ Add current channel";
-      detectBtn.disabled = false;
+      detectBtn.disabled    = false;
       showStatus("Open a YouTube page first.", "warn");
       return;
     }
 
     chrome.tabs.sendMessage(tab.id, { type: "GET_CHANNEL_INFO" }, (response) => {
       detectBtn.textContent = "+ Add current channel";
-      detectBtn.disabled = false;
+      detectBtn.disabled    = false;
 
       if (chrome.runtime.lastError || !response) {
         showStatus("Couldn't detect channel. Try refreshing YouTube.", "warn");
@@ -225,17 +170,12 @@ detectBtn.addEventListener("click", () => {
         addToAllowlist(info);
         showStatus("Added: " + info, "success");
       } else {
-        showStatus("No channel detected on this page.", "warn");
+        showStatus("No channel found on this page.", "warn");
       }
     });
   });
 });
 
-/**
- * addToAllowlist
- * Adds a new pattern string to the allowlist (deduplicating),
- * saves to storage, notifies the content script, and re-renders.
- */
 function addToAllowlist(pattern) {
   const normalised = pattern.trim().toLowerCase();
   if (!normalised) return;
@@ -262,16 +202,15 @@ function saveAllowlist() {
   sendToYouTube({ type: "ALLOWLIST_UPDATE", allowlist: currentAllowlist }, null);
 }
 
-/** Rebuilds the rendered list of allowlisted patterns. */
 function renderAllowlist() {
   allowlistList.innerHTML = "";
 
   if (!currentAllowlist.length) {
-    allowlistEmpty.classList.remove("hidden"); // show "no channels" hint
+    allowlistEmpty.classList.remove("hidden");
     return;
   }
 
-  allowlistEmpty.classList.add("hidden"); // hide hint when list has items
+  allowlistEmpty.classList.add("hidden");
 
   currentAllowlist.forEach((pattern, index) => {
     const li = document.createElement("li");
@@ -298,18 +237,9 @@ debugToggle.addEventListener("change", () => {
 });
 
 // ════════════════════════════════════════════════════════════
-// SHARED HELPERS
+// HELPERS
 // ════════════════════════════════════════════════════════════
 
-/**
- * sendToYouTube
- * Finds the active YouTube tab and sends a message to its content script.
- * If a statusMessage is provided, shows it in the status bar on success/failure.
- *
- * @param {object}      message       - message object to send
- * @param {string|null} statusMessage - text to show in status bar on success
- * @param {string}      statusType    - "success" | "warn" | "error"
- */
 function sendToYouTube(message, statusMessage, statusType = "success") {
   getActiveYouTubeTab((tab) => {
     if (!tab) {
@@ -319,8 +249,6 @@ function sendToYouTube(message, statusMessage, statusType = "success") {
 
     chrome.tabs.sendMessage(tab.id, message, () => {
       if (chrome.runtime.lastError) {
-        // Non-fatal: content script may not be ready.
-        // Settings are persisted to storage and will be read on next load.
         if (statusMessage) showStatus("Saved. Refresh YouTube to apply.", "warn");
       } else {
         if (statusMessage) showStatus(statusMessage, statusType);
@@ -329,10 +257,6 @@ function sendToYouTube(message, statusMessage, statusType = "success") {
   });
 }
 
-/**
- * getActiveYouTubeTab
- * Calls back with the active tab object if it's a YouTube tab, else null.
- */
 function getActiveYouTubeTab(callback) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab       = tabs[0];
@@ -341,10 +265,6 @@ function getActiveYouTubeTab(callback) {
   });
 }
 
-/**
- * showStatus
- * Displays a brief message in the status bar, then clears it.
- */
 function showStatus(message, type = "") {
   statusBar.textContent = message;
   statusBar.className   = "status-bar " + type;
@@ -355,7 +275,6 @@ function showStatus(message, type = "") {
   }, 3500);
 }
 
-/** Minimal HTML escaping for user-supplied strings rendered into the DOM. */
 function escapeHtml(str) {
   return str
     .replace(/&/g, "&amp;")

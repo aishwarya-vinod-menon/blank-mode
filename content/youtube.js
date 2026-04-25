@@ -315,36 +315,19 @@ const SELECTOR_GROUPS = {
 
 /**
  * hideRecommendations
- * Hides surfaces based on each granular setting.
- * Each block checks its own flag before calling hideGroup().
+ * Hides all recommendation surfaces unconditionally when Blank Mode is ON.
+ * Granular per-feature toggles were removed — everything is hidden together.
  */
 function hideRecommendations() {
-  if (settings.hideShorts) {
-    hideGroup("shortsShelf");
-    hideGroup("shortsSidebarLinks");
-  }
-
-  if (settings.hideRightRail) {
-    hideGroup("watchRelated");
-  }
-
-  if (settings.hideAutoplay) {
-    hideGroup("autoplay");
-  }
-
-  if (settings.hideEndscreen) {
-    hideGroup("endscreen");
-  }
-
-  // Chip/filter bar always hidden when any detox is active
+  hideGroup("shortsShelf");
+  hideGroup("shortsSidebarLinks");
+  hideGroup("watchRelated");
+  hideGroup("autoplay");
+  hideGroup("endscreen");
   hideGroup("chips");
 
-  if (settings.hideHomeFeed && isYouTubeHomePage()) {
+  if (isYouTubeHomePage()) {
     hideGroup("homeFeed");
-  }
-
-  if (settings.strictMode) {
-    hideGroup("strictExtras");
   }
 }
 
@@ -404,8 +387,6 @@ function restoreRecommendations() {
 // ============================================================
 
 function injectHomeReplacement() {
-  // Only inject if the homepage feed is being hidden
-  if (!settings.hideHomeFeed) return;
   if (document.getElementById(HOME_REPLACEMENT_ID)) return;
 
   const div = document.createElement("div");
